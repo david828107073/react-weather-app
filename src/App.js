@@ -140,6 +140,65 @@ const theme = {
         textColor: '#cccccc',
     },
 };
+
+const AUTHORIZATION_KEY = 'CWB-D9A270FF-7E1C-4734-9CF8-B63DF1C5B473';
+const LOCATION_NAME = '臺北';
+const LOCATION_NAME_FORECAST = '臺北市';
+
+const fetchCurrentWeather = () => {
+    return fetch(`https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`)
+        .then((response) => response.json())
+        .then((data) => {
+            const locationData = data.records.location[0];
+            const weatherElements = locationData.weatherElement.reduce(
+                (neededElements, item) => {
+                    if (['WDSD', 'TEMP'].includes(item.elementName)) {
+                        neededElements[item.elementName] = item.elementValue;
+                    }
+                    return neededElements;
+                },
+                {}
+            );
+
+
+            return {
+                observationTime: locationData.time.obsTime,
+                locationName: locationData.locationName,
+                temperature: weatherElements.TEMP,
+                windSpeed: weatherElements.WDSD
+            }
+        });
+}
+
+
+const fetchWeatherForecast = () => {
+    return fetch(
+        `https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME_FORECAST}`
+    )
+        .then((response) => response.json())
+        .then((data) => {
+            const locationData = data.records.location[0];
+            const weatherElements = locationData.weatherElement.reduce(
+                (neededElements, item) => {
+                    if (['Wx', 'PoP', 'CI'].includes(item.elementName)) {
+                        neededElements[item.elementName] = item.time[0].parameter;
+                    }
+                    return neededElements;
+                },
+                {}
+            );
+
+            return {
+                description: weatherElements.Wx.parameterName,
+                weatherCode: weatherElements.Wx.parameterValue,
+                rainPossibility: weatherElements.PoP.parameterName,
+                comfortability: weatherElements.CI.parameterName
+            }
+
+        });
+};
+
+
 const App = () => {
     // console.dir('invoke function component');
     const [currentTheme, setCurrentTheme] = useState('dark');
@@ -158,73 +217,26 @@ const App = () => {
     });
 
 
-    const AUTHORIZATION_KEY = 'CWB-D9A270FF-7E1C-4734-9CF8-B63DF1C5B473';
-    const LOCATION_NAME = '臺北';
-    const LOCATION_NAME_FORECAST = '臺北市';
-
     useEffect(() => {
         // console.dir('execute function in useEffect...');
-        fetchCurrentWeather();
-        fetchWeatherForecast();
+        // fetchCurrentWeather();
+        // fetchWeatherForecast();
+        const fetchData = async () => {
+            setWeatherElement((prevState) => ({
+                ...prevState,
+                isLoading: true,
+            }));
+            const [currentWeather, weatherForecast] = await Promise.all([fetchCurrentWeather(), fetchWeatherForecast()]);
+            setWeatherElement({
+                ...currentWeather,
+                ...weatherForecast,
+                isLoading: false
+            })
+        };
+
+        fetchData();
+
     }, []);
-
-    const fetchCurrentWeather = () => {
-        setWeatherElement((prevState) => ({
-            ...prevState,
-            isLoading: true
-        }))
-        fetch(`https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`)
-            .then((response) => response.json())
-            .then((data) => {
-                const locationData = data.records.location[0];
-                const weatherElements = locationData.weatherElement.reduce(
-                    (neededElements, item) => {
-                        if (['WDSD', 'TEMP'].includes(item.elementName)) {
-                            neededElements[item.elementName] = item.elementValue;
-                        }
-                        return neededElements;
-                    },
-                    {}
-                );
-
-
-                setWeatherElement((prevState) => ({
-                    ...prevState,
-                    observationTime: locationData.time.obsTime,
-                    locationName: locationData.locationName,
-                    temperature: weatherElements.TEMP,
-                    windSpeed: weatherElements.WDSD,
-                    isLoading: false
-                }));
-            });
-    }
-
-    const fetchWeatherForecast = () => {
-        fetch(
-            `https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME_FORECAST}`
-        )
-            .then((response) => response.json())
-            .then((data) => {
-                const locationData = data.records.location[0];
-                const weatherElements = locationData.weatherElement.reduce(
-                    (neededElements, item) => {
-                        if (['Wx', 'PoP', 'CI'].includes(item.elementName)) {
-                            neededElements[item.elementName] = item.time[0].parameter;
-                        }
-                        return neededElements;
-                    },
-                    {}
-                );
-
-                setWeatherElement((prevState) => ({
-                    ...prevState,
-                    description: weatherElements.Wx.parameterName,
-                    weatherCode: weatherElements.Wx.parameterValue,
-                    rainPossibility: weatherElements.PoP.parameterName,
-                    comfortability: weatherElements.CI.parameterName,
-                }));
-            });
-    };
 
     const {
         observationTime,
