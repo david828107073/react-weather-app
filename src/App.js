@@ -6,7 +6,7 @@ import {ReactComponent as RainIcon} from './images/rain.svg';
 import {ReactComponent as RefreshIcon} from './images/refresh.svg';
 import {ReactComponent as LoadingIcon} from './images/loading.svg';
 import {ThemeProvider} from '@emotion/react';
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import dayjs from 'dayjs';
 // build styled components
 
@@ -62,22 +62,14 @@ const Celsius = styled.div`
 const AirFlow = styled.div`
   display: flex;
   align-items: center;
-  font-size: 16x;
+  font-size: 16px;
   font-weight: 300;
-  color: ${({theme}) => theme.textColor};
-  margin-bottom: 20px;
-
-  svg {
-    width: 25px;
-    height: auto;
-    margin-right: 30px;
-  }
-`;
+  color: ${({theme}) => theme.textColor}`;
 
 const Rain = styled.div`
   display: flex;
   align-items: center;
-  font-size: 16x;
+  font-size: 16px;
   font-weight: 300;
   color: ${({theme}) => theme.textColor};
 
@@ -216,27 +208,29 @@ const App = () => {
         isLoading: true,
     });
 
+    const fetchData = useCallback(async () => {
+        setWeatherElement((prevState) => ({
+            ...prevState,
+            isLoading: true,
+        }));
+        const [currentWeather, weatherForecast] = await Promise.all([fetchCurrentWeather(), fetchWeatherForecast()]);
+        setWeatherElement({
+            ...currentWeather,
+            ...weatherForecast,
+            isLoading: false
+        })
+    },[]);
+
 
     useEffect(() => {
         // console.dir('execute function in useEffect...');
         // fetchCurrentWeather();
         // fetchWeatherForecast();
-        const fetchData = async () => {
-            setWeatherElement((prevState) => ({
-                ...prevState,
-                isLoading: true,
-            }));
-            const [currentWeather, weatherForecast] = await Promise.all([fetchCurrentWeather(), fetchWeatherForecast()]);
-            setWeatherElement({
-                ...currentWeather,
-                ...weatherForecast,
-                isLoading: false
-            })
-        };
+
 
         fetchData();
 
-    }, []);
+    }, [fetchData]);
 
     const {
         observationTime,
@@ -267,10 +261,7 @@ const App = () => {
                     <Rain>
                         <RainIcon/>{rainPossibility}%
                     </Rain>
-                    <Refresh onClick={() => {
-                        fetchCurrentWeather();
-                        fetchWeatherForecast();
-                    }} isLoading={isLoading}>最後觀測時間:
+                    <Refresh onClick={fetchData} isLoading={isLoading}>最後觀測時間:
                         {new Intl.DateTimeFormat('zh-TW', {
                             year: 'numeric',
                             month: 'numeric',
